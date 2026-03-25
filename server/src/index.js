@@ -29,18 +29,40 @@ await setupDatabase();
 
 // ── Redis ─────────────────────────────────────────────────────────────────────
 let pubClient, subClient;
+let redisConnected = false;
+
 try {
-  pubClient = createClient(REDIS_URL);
+  pubClient = createClient(REDIS_URL, {
+    maxRetriesPerRequest: 3,
+    enableReadyCheck: false,
+    enableOfflineQueue: false,
+    connectTimeout: 5000,
+    retryStrategy: (times) => Math.min(times * 100, 1000),
+  });
   subClient = pubClient.duplicate();
 
-  pubClient.on("error", (err) => console.warn("⚠️  Redis error:", err.message));
-  subClient.on("error", (err) => console.warn("⚠️  Redis error:", err.message));
+  pubClient.on("error", (err) => {
+    console.warn("⚠️  Redis error:", err.message);
+  });
+  subClient.on("error", (err) => {
+    console.warn("⚠️  Redis sub error:", err.message);
+  });
 
-  await Promise.all([pubClient.connect(), subClient.connect()]);
+  const redisPromise = Promise.race([
+    Promise.all([pubClient.connect(), subClient.connect()]),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Redis timeout")), 10000),
+    ),
+  ]);
+
+  await redisPromise;
+  redisConnected = true;
   console.log("✅ Redis connected");
 } catch (error) {
   console.warn("⚠️  Redis connection failed:", error.message);
-  console.warn("⚠️  Running without Redis - multi-server features disabled");
+  console.warn("⚠️  Running without Redis - features may be limited");
+  pubClient = null;
+  subClient = null;
 }
 app.decorate("redis", pubClient);
 
