@@ -8,12 +8,19 @@ const __dirname = dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Serve static files from dist directory
-app.use(express.static(join(__dirname, "dist")));
+// Serve static files from dist directory (Railway builds in current directory)
+const distPath =
+  process.env.NODE_ENV === "production"
+    ? join(__dirname, "dist")
+    : join(__dirname, "dist");
+
+console.log(`📁 Serving from: ${distPath}`);
+
+app.use(express.static(distPath));
 
 // SPA fallback: serve index.html for all routes
 app.get("*", (req, res) => {
-  res.sendFile(join(__dirname, "dist", "index.html"));
+  res.sendFile(join(distPath, "index.html"));
 });
 
 app.listen(PORT, () => {
