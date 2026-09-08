@@ -1,15 +1,18 @@
 import { useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useStore } from '../store/index.js'
+import { useWaterfallStore } from '../store/waterfallStore.js'
 import { useSocket } from '../hooks/useSocket.js'
 import WhiteboardCanvas from '../components/WhiteboardCanvas.jsx'
 import Toolbar from '../components/Toolbar.jsx'
 import CursorOverlay from '../components/CursorOverlay.jsx'
 import UserList from '../components/UserList.jsx'
+import { WaterfallCanvas, WaterfallPanel } from '../components/Waterfall/index.js'
 
 export default function WhiteboardPage() {
   const { roomId } = useParams()
   const { token, room } = useStore()
+  const { active: waterfallActive, setActive: setWaterfallActive } = useWaterfallStore()
   const canvasRef = useRef(null)
   const navigate = useNavigate()
 
@@ -58,16 +61,39 @@ export default function WhiteboardPage() {
             cursor: 'pointer', color: '#378ADD',
           }}
         >📋 Copy link</button>
+        <button
+          onClick={() => setWaterfallActive(!waterfallActive)}
+          title="Vẽ hoạ tiết gửi sang màn nước"
+          style={{
+            fontSize: 12, padding: '4px 10px', borderRadius: 6,
+            border: '1px solid rgba(0,0,0,0.12)',
+            background: waterfallActive ? '#378ADD' : 'transparent',
+            color: waterfallActive ? '#fff' : '#378ADD',
+            cursor: 'pointer', fontWeight: 600,
+          }}
+        >🌊 {waterfallActive ? 'Đang ở màn nước' : 'Màn nước'}</button>
       </div>
 
-      {/* Canvas area */}
-      <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      {/* Canvas vẽ chung — giữ mounted (không unmount) để không mất nét khi
+          chuyển qua lại mode màn nước; chỉ ẩn bằng display. */}
+      <div style={{ position: 'relative', width: '100%', height: '100%', display: waterfallActive ? 'none' : 'block' }}>
         <WhiteboardCanvas canvasRef={canvasRef} />
         <CursorOverlay canvasRef={canvasRef} />
       </div>
 
-      <UserList />
-      <Toolbar onExport={handleExport} />
+      {waterfallActive ? (
+        <>
+          <div style={{ position: 'absolute', inset: 0, right: 312 }}>
+            <WaterfallCanvas />
+          </div>
+          <WaterfallPanel onExit={() => setWaterfallActive(false)} />
+        </>
+      ) : (
+        <>
+          <UserList />
+          <Toolbar onExport={handleExport} />
+        </>
+      )}
     </div>
   )
 }

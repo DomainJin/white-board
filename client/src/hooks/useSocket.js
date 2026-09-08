@@ -1,6 +1,8 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { io } from 'socket.io-client'
 import { useStore } from '../store/index.js'
+import { useWaterfallStore } from '../store/waterfallStore.js'
+import { attachWaterfallBridgeListeners } from '../waterfall/bridgeTransport.js'
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001'
 
@@ -34,6 +36,13 @@ export function useSocket(roomId, canvasRef) {
     socketInstance = io(SERVER_URL, {
       auth: { token },
       transports: ['websocket'],
+    })
+
+    // Mode "Màn nước" (bridge relay) dùng LẠI kết nối này — xem
+    // waterfall/bridgeTransport.js và waterfallProtocol.md mục 8.
+    attachWaterfallBridgeListeners(socketInstance, {
+      onStatus: (status) => useWaterfallStore.getState().applyBridgeStatus(status),
+      onBridgeOnline: (online) => useWaterfallStore.getState().setBridgeOnline(online),
     })
 
     socketInstance.on('connect', () => {
